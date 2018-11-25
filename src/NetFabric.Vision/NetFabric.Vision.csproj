@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  
+  <PropertyGroup>
+    <Title>NetFabric.Vision</Title>
+    <TargetFrameworks>net45</TargetFrameworks>
+    <Description>Computer vision for .NET</Description>
+    <Version>0.1.0</Version>
+    <Copyright>Copyright © Antão Almada 2018</Copyright>
+    <Authors>Antão Almada</Authors>
+    <Company>NetFabric</Company>
+    <PackageLicenseUrl>https://github.com/NetFabric/NetFabric.Vision/blob/master/LICENSE</PackageLicenseUrl>
+    <PackageProjectUrl>https://github.com/NetFabric/NetFabric.Vision</PackageProjectUrl>
+    <PackageTags>vision</PackageTags>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <PackageReleaseNotes></PackageReleaseNotes>
+    <RootNamespace>NetFabric.Vision</RootNamespace>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="OpenCV" Version="2.4.11" />
+  </ItemGroup>
+  
+</Project>
