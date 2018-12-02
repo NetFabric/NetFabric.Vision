@@ -9,49 +9,22 @@ namespace NetFabric.Vision.Tests
     public class DrawEdgesTests
     {
         [Theory]
-        [InlineData("lena512color.tiff", GradientOperator.Prewitt, 30.0, 1.0)]
-        public void DrawEdges(string fileName, GradientOperator gradientOperator, double gradientThreshold, double smoothSigma)
+        [InlineData("lena512color.tiff", GradientOperator.Prewitt, 4, 1.0, 1, 255, 8, 30)]
+        public void DrawEdges(
+            string fileName, GradientOperator gradientOperator,
+            int anchorScanInterval, double smoothSigma,
+            int minEdgePoints, int maxRecursionLevel, int anchorThreshold, int gradientThreshold)
         {
             var inputPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
             var image = CV.LoadImage(inputPath, LoadImageFlags.Grayscale);
             var rows = image.Size.Height;
             var columns = image.Size.Width;
 
-            var smooth = new Mat(rows, columns, Depth.U8, 1);
-            var gradientMap = new Mat(rows, columns, Depth.U8, 1);
-            var directionMap = new Mat(rows, columns, Depth.U8, 1);
-            var gradientX = new Mat(rows, columns, Depth.S16, 1);
-            var gradientY = new Mat(rows, columns, Depth.S16, 1);
-            var magnitudeMap = new Mat(rows, columns, Depth.U8, 1);
-            var absGradientX = new Mat(rows, columns, Depth.U8, 1);
-            var absGradientY = new Mat(rows, columns, Depth.U8, 1);
+            var edgeDrawing = new EdgeDrawing(rows, columns, gradientOperator, anchorScanInterval, smoothSigma, minEdgePoints, maxRecursionLevel);
 
-            CV.Smooth(image, smooth, SmoothMethod.Gaussian, 5, 5, smoothSigma);
+            var anchors = edgeDrawing.DrawEdges(image, anchorThreshold, gradientThreshold);
 
-            Utils.ComputeGradient(smooth,
-                gradientOperator, gradientThreshold,
-                gradientX, gradientY,
-                absGradientX, absGradientY,
-                gradientMap, directionMap);
-
-            SaveImage(gradientMap,
-                $"ComputeGradient_GradientMap_{Path.GetFileNameWithoutExtension(fileName)}_{gradientOperator}_{gradientThreshold}_{smoothSigma}.bmp");
-            SaveImage(directionMap,
-                $"ComputeGradient_DirectionMap_{Path.GetFileNameWithoutExtension(fileName)}_{gradientOperator}_{gradientThreshold}_{smoothSigma}.bmp");
-
-            var anchors = Utils.ExtractAnchors(gradientMap, directionMap, 4, 30);
-
-            var result = new Mat(rows, columns, Depth.U8, 1);
-            result.Set(Scalar.All(0));
-            var color = new Scalar(255);
-            foreach(var anchor in anchors)
-                CV.Line(result, anchor, anchor, color);
-
-            SaveImage(result,
-                $"ExtractAnchors_{Path.GetFileNameWithoutExtension(fileName)}_{gradientOperator}_{gradientThreshold}_{smoothSigma}.bmp");
         }
 
-        void SaveImage(Mat source, string fileName) =>
-            CV.SaveImage(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName), source);
     }
 }

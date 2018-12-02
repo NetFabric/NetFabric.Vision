@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using OpenCV.Net;
 
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("NetFabric.Vision.Tests")]
@@ -18,6 +19,11 @@ namespace NetFabric.Vision
         const byte HorizontalValue = 0;
         const byte VerticalValue = 255;
         const byte EdgeValue = 0;
+
+        static readonly Mat PrewittX = Mat.FromArray(new float[] { -1, 0, 1, -1, 0, 1, -1, 0, 1 });
+        static readonly Mat PrewittY = Mat.FromArray(new float[] { -1, -1, -1, 0, 0, 0, 1, 1, 1 });
+        static readonly Mat ScharrX = Mat.FromArray(new float[] { -3, 0, 3, -10, 0, 10, -3, 0, 3 });
+        static readonly Mat ScharrY = Mat.FromArray(new float[] { -3, -10, -3, 0, 0, 0, 3, 10, 3 });
 
         readonly GradientOperator _gradientOperator;
         readonly int _anchorScanInterval;
@@ -51,20 +57,28 @@ namespace NetFabric.Vision
             _edgesMap.Set(Scalar.All(0));
         }
 
-        public List<DoubleLinkedList<Point>> DrawEdges(Mat src, int anchorThreshold, int gradientThreshold)
+        public List<DoubleLinkedList<Point>> DrawEdges(Arr source, int anchorThreshold, int gradientThreshold)
         {
-            // gaussian filtering
-            CV.Smooth(src, _smooth, SmoothMethod.Gaussian, 5, 5, _smoothSigma);
-
             // compute the gradient and direction maps
-            Utils.ComputeGradient(_smooth,
-                _gradientOperator, gradientThreshold,
-                _gradientX, _gradientY,
-                _absGradientX, _absGradientY,
-                _gradientMap, _directionMap);
+            ComputeGradient(source, gradientThreshold);
+
+#if DEBUG
+            SaveImage(_gradientMap, "GradientMap.bmp");
+            SaveImage(_directionMap, "DirectionMap.bmp");
+#endif
 
             // compute the anchors
-            var anchors = Utils.ExtractAnchors(_gradientMap, _directionMap, _anchorScanInterval, anchorThreshold);
+            var anchors = ExtractAnchors(anchorThreshold);
+
+#if DEBUG
+            var anchorsMap = new Mat(source.Size.Width, source.Size.Height, Depth.U8, 1);
+            anchorsMap.Set(Scalar.All(0));
+            var anchorColor = new Scalar(255);
+            foreach(var anchor in anchors)
+                CV.Line(anchorsMap, anchor, anchor, anchorColor);
+
+            SaveImage(anchorsMap, "ExtractAnchors.bmp");
+#endif
 
             // connect the anchors by smart routing
             var edges = new List<DoubleLinkedList<Point>>();
@@ -73,7 +87,213 @@ namespace NetFabric.Vision
                 HandleAnchor(anchor, edges);
             }
 
+#if DEBUG
+            var edgesMap = new Mat(source.Size.Width, source.Size.Height, Depth.U8, 3);
+            edgesMap.Set(Scalar.All(0));
+            var edgeColor = new Scalar(255);
+            Point previousPoint;
+            foreach(var edge in edges)
+            {
+                previousPoint = edge.First.Value;
+                foreach(var point in edge.EnumerateForward())
+                {
+                    CV.Line(edgesMap, previousPoint, point, edgeColor);
+                    previousPoint = point;
+                }
+            }
+
+            SaveImage(edgesMap, "EdgesMap.bmp");
+#endif
+
             return edges;
+        }
+
+#if DEBUG
+        void SaveImage(Mat source, string fileName) =>
+            CV.SaveImage(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName), source);
+#endif
+
+        void ComputeGradient(Arr source, double gradientThreshold)
+        {
+            // gaussian filtering
+            CV.Smooth(source, _smooth, SmoothMethod.Gaussian, 5, 5, _smoothSigma);
+
+            // calculate gradients
+            switch(_gradientOperator)
+            {
+                case GradientOperator.Prewitt:
+                    CV.Filter2D(_smooth, _gradientX, PrewittX);
+                    CV.Filter2D(_smooth, _gradientY, PrewittY);
+                    if(gradientThreshold < 0.0)
+                        gradientThreshold = 6.0;
+                    break;
+                case GradientOperator.Sobel:
+                    CV.Sobel(_smooth, _gradientX, 1, 0);
+                    CV.Sobel(_smooth, _gradientY, 0, 1);
+                    break;
+                case GradientOperator.Scharr:
+                    CV.Filter2D(_smooth, _gradientX, PrewittX);
+                    CV.Filter2D(_smooth, _gradientY, PrewittY);
+                    break;
+                default:
+                    throw new Exception($"Unknown gradient operator: {_gradientOperator}");
+            }
+
+            // calculate absolute values for gradients
+            CV.ConvertScaleAbs(_gradientX, _absGradientX);
+            CV.ConvertScaleAbs(_gradientY, _absGradientY);
+
+            // merge gradients  
+            // d = 0.5 * abs(dx) + 0.5 * abs(dy)
+            CV.AddWeighted(_absGradientX, 0.5, _absGradientY, 0.5, 0.0, _gradientMap);
+
+            // eliminate gradient weak pixels
+            CV.Threshold(_gradientMap, _gradientMap, gradientThreshold, 255, ThresholdTypes.ToZero);
+
+            // edge direction 
+            // abs(dx) >= abs(dy) => VERTICAL
+            CV.Cmp(_absGradientX, _absGradientY, _directionMap, ComparisonOperation.GreaterOrEqual);
+        }
+
+        List<Point> ExtractAnchors(int threshold)
+        {
+            var anchors = new List<Point>();
+
+            // iterate through the Rows
+            for(int row = 1, rowEnd = _gradientMap.Rows - 1; row < rowEnd; row += _anchorScanInterval)
+            {
+                // iterate through the columns
+                for(int col = 1, colEnd = _gradientMap.Cols - 1; col < colEnd; col += _anchorScanInterval)
+                {
+                    var g = (byte)_gradientMap.GetReal(row, col);
+
+                    if((byte)_directionMap.GetReal(row, col) == HorizontalValue)
+                    {
+                        // compare to horizontal neighbors
+                        if(Math.Abs(g - (byte)_gradientMap.GetReal(row - 1, col)) > threshold &&
+                            Math.Abs(g - (byte)_gradientMap.GetReal(row + 1, col)) > threshold)
+                        {
+                            anchors.Add(new Point(col, row));
+                        }
+                    }
+                    else
+                    {
+                        // compare to vertical neighbors
+                        if(Math.Abs(g - (byte)_gradientMap.GetReal(row, col - 1)) > threshold &&
+                            Math.Abs(g - (byte)_gradientMap.GetReal(row, col + 1)) > threshold)
+                        {
+                            anchors.Add(new Point(col, row));
+                        }
+                    }
+                }
+            }
+
+            return anchors;
+        }
+
+        List<Point>[] ExtractAnchorsParameterFree()
+        {
+            var anchors = new List<Point>[256];
+
+            // iterate through the Rows
+            for(int row = 1, rowEnd = _gradientMap.Rows - 1; row < rowEnd; row += _anchorScanInterval)
+            {
+                // iterate through the columns
+                for(int col = 1, colEnd = _gradientMap.Cols - 1; col < colEnd; col += _anchorScanInterval)
+                {
+                    var g = (byte)_gradientMap.GetReal(row, col);
+
+                    if((byte)_directionMap.GetReal(row, col) == HorizontalValue)
+                    {
+                        // compare to horizontal neighbors
+                        if(g > (byte)_gradientMap.GetReal(row - 1, col) && g > (byte)_gradientMap.GetReal(row + 1, col))
+                        {
+                            anchors[g].Add(new Point(col, row));
+                        }
+                    }
+                    else
+                    {
+                        // compare to vertical neighbors
+                        if(g > (byte)_gradientMap.GetReal(row, col - 1) && g > (byte)_gradientMap.GetReal(row, col + 1))
+                        {
+                            anchors[g].Add(new Point(col, row));
+                        }
+                    }
+                }
+            }
+
+            return anchors;
+        }
+
+        void HandleAnchor(Point anchor, List<DoubleLinkedList<Point>> edges)
+        {
+            var direction = (byte)_directionMap.GetReal(anchor.Y, anchor.X);
+            if(direction == HorizontalValue)
+            { // is horizontal
+                var edge = GoHorizontal(anchor, edges, 0);
+                if(edge.Count >= _minEdgePoints)
+                    edges.Add(edge);
+            }
+            else
+            { // is vertical
+                var edge = GoVertical(anchor, edges, 0);
+                if(edge.Count >= _minEdgePoints)
+                    edges.Add(edge);
+            }
+        }
+
+        DoubleLinkedList<Point> GoHorizontal(Point point, List<DoubleLinkedList<Point>> edges, int recursionLevel)
+        {
+            var edge = new DoubleLinkedList<Point>();
+
+            if(recursionLevel < _maxRecursionLevel)
+            {
+
+                var left = GoLeft(point, edges, recursionLevel);
+                if(left.Count >= _minEdgePoints)
+                {
+                    edge = DoubleLinkedList.AppendInPlace(edge, left, false, true);
+                }
+
+                // add the current point to back of edge
+                edge.AddLast(point);
+
+                var right = GoRight(point, edges, recursionLevel);
+                if(right.Count >= _minEdgePoints)
+                {
+                    edge = DoubleLinkedList.AppendInPlace(edge, right, false, false);
+                }
+
+            }
+
+            return edge;
+        }
+
+        DoubleLinkedList<Point> GoVertical(Point point, List<DoubleLinkedList<Point>> edges, int recursionLevel)
+        {
+            var edge = new DoubleLinkedList<Point>();
+
+            if(recursionLevel < _maxRecursionLevel)
+            {
+
+                var down = GoDown(point, edges, recursionLevel);
+                if(down.Count >= _minEdgePoints)
+                {
+                    edge = DoubleLinkedList.AppendInPlace(edge, down, false, true);
+                }
+
+                // add the current point to back of edge
+                edge.AddLast(point);
+
+                var up = GoUp(point, edges, recursionLevel);
+                if(up.Count >= _minEdgePoints)
+                {
+                    edge = DoubleLinkedList.AppendInPlace(edge, up, false, false);
+                }
+
+            }
+
+            return edge;
         }
 
         DoubleLinkedList<Point> GoLeft(Point point, List<DoubleLinkedList<Point>> edges, int recursionLevel)
@@ -341,77 +561,6 @@ namespace NetFabric.Vision
             // edges don't share extremities
             // store adjacentEdge in edges
             edges.Add(adjacentEdge);
-        }
-
-        DoubleLinkedList<Point> GoHorizontal(Point point, List<DoubleLinkedList<Point>> edges, int recursionLevel)
-        {
-            var edge = new DoubleLinkedList<Point>();
-
-            if(recursionLevel < _maxRecursionLevel)
-            {
-
-                var left = GoLeft(point, edges, recursionLevel);
-                if(left.Count >= _minEdgePoints)
-                {
-                    edge = DoubleLinkedList.AppendInPlace(edge, left, false, true);
-                }
-
-                // add the current point to back of edge
-                edge.AddLast(point);
-
-                var right = GoRight(point, edges, recursionLevel);
-                if(right.Count >= _minEdgePoints)
-                {
-                    edge = DoubleLinkedList.AppendInPlace(edge, right, false, false);
-                }
-
-            }
-
-            return edge;
-        }
-
-        DoubleLinkedList<Point> GoVertical(Point point, List<DoubleLinkedList<Point>> edges, int recursionLevel)
-        {
-            var edge = new DoubleLinkedList<Point>();
-
-            if(recursionLevel < _maxRecursionLevel)
-            {
-
-                var down = GoDown(point, edges, recursionLevel);
-                if(down.Count >= _minEdgePoints)
-                {
-                    edge = DoubleLinkedList.AppendInPlace(edge, down, false, true);
-                }
-
-                // add the current point to back of edge
-                edge.AddLast(point);
-
-                var up = GoUp(point, edges, recursionLevel);
-                if(up.Count >= _minEdgePoints)
-                {
-                    edge = DoubleLinkedList.AppendInPlace(edge, up, false, false);
-                }
-
-            }
-
-            return edge;
-        }
-
-        void HandleAnchor(Point anchor, List<DoubleLinkedList<Point>> edges)
-        {
-            var direction = (byte)_directionMap.GetReal(anchor.Y, anchor.X);
-            if(direction == HorizontalValue)
-            { // is horizontal
-                var edge = GoHorizontal(anchor, edges, 0);
-                if(edge.Count >= _minEdgePoints)
-                    edges.Add(edge);
-            }
-            else
-            { // is vertical
-                var edge = GoVertical(anchor, edges, 0);
-                if(edge.Count >= _minEdgePoints)
-                    edges.Add(edge);
-            }
         }
 
     }
