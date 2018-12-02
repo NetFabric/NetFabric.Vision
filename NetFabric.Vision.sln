@@ -18,6 +18,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution", "Solution", "{6C
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetFabric.Vision.Tests", "tests\NetFabric.Vision.Tests\NetFabric.Vision.Tests.csproj", "{1DAFD0C2-93F2-4396-8E34-324F5A5FA960}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetFabric.Vision.Bonsai.Design", "src\NetFabric.Vision.Bonsai.Design\NetFabric.Vision.Bonsai.Design.csproj", "{DFA9EDDB-418E-4980-97D5-D4E027A8BC29}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -36,6 +38,10 @@ Global
 		{1DAFD0C2-93F2-4396-8E34-324F5A5FA960}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1DAFD0C2-93F2-4396-8E34-324F5A5FA960}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1DAFD0C2-93F2-4396-8E34-324F5A5FA960}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DFA9EDDB-418E-4980-97D5-D4E027A8BC29}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DFA9EDDB-418E-4980-97D5-D4E027A8BC29}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DFA9EDDB-418E-4980-97D5-D4E027A8BC29}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DFA9EDDB-418E-4980-97D5-D4E027A8BC29}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

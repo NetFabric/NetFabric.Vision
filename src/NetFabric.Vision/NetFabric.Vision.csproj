@@ -2,7 +2,7 @@
   
   <PropertyGroup>
     <Title>NetFabric.Vision</Title>
-    <TargetFrameworks>net45</TargetFrameworks>
+    <TargetFrameworks>net462</TargetFrameworks>
     <Description>Computer vision for .NET</Description>
     <Version>0.1.0</Version>
     <Copyright>Copyright © Antão Almada 2018</Copyright>
@@ -15,10 +15,21 @@
     <PackageReleaseNotes></PackageReleaseNotes>
     <RootNamespace>NetFabric.Vision</RootNamespace>
     <LangVersion>latest</LangVersion>
+    <Features>strict</Features>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <DefineConstants>TRACE;DEBUG</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DocumentationFile>bin\$(Configuration)\$(TargetFramework)\$(AssemblyName).xml</DocumentationFile>
   </PropertyGroup>
   
   <ItemGroup>
-    <PackageReference Include="OpenCV" Version="2.4.11" />
+    <PackageReference Include="NetFabric.DoubleLinkedList" Version="1.2.0" />
+    <PackageReference Include="OpenCV.Net" Version="3.3.1" />
   </ItemGroup>
   
 </Project>

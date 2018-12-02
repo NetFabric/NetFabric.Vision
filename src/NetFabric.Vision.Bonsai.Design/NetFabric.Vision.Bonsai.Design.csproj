@@ -1,9 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  
+
   <PropertyGroup>
-    <Title>NetFabric.Vision.Bonsai</Title>
+    <Title>NetFabric.Vision.Bonsai.Design</Title>
     <TargetFrameworks>net462</TargetFrameworks>
-    <Description>Computer vision modules for Bonsai</Description>
+    <Description>Visualizers and editor classes for NetFabric.Vision.Bonsai</Description>
     <Version>0.1.0</Version>
     <Copyright>Copyright © Antão Almada 2018</Copyright>
     <Authors>Antão Almada</Authors>
@@ -13,16 +13,12 @@
     <PackageTags>vision, bonsai</PackageTags>
     <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     <PackageReleaseNotes></PackageReleaseNotes>
-    <RootNamespace>NetFabric.Vision.Bonsai</RootNamespace>
+    <RootNamespace>NetFabric.Vision.Bonsai.Design</RootNamespace>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
-  
+
   <ItemGroup>
-    <PackageReference Include="Bonsai.Vision" Version="2.3.0" />
+    <PackageReference Include="Bonsai.Design.Visualizers" Version="2.3.2" />
   </ItemGroup>
-  
-  <ItemGroup>
-    <ProjectReference Include="..\NetFabric.Vision\NetFabric.Vision.csproj" />
-  </ItemGroup>
-  
+
 </Project>
