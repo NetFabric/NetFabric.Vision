@@ -64,7 +64,7 @@ namespace NetFabric.Vision
                 _gradientMap, _directionMap);
 
             // compute the anchors
-            var anchors = ExtractAnchors(anchorThreshold);
+            var anchors = Utils.ExtractAnchors(_gradientMap, _directionMap, _anchorScanInterval, anchorThreshold);
 
             // connect the anchors by smart routing
             var edges = new List<DoubleLinkedList<Point>>();
@@ -74,88 +74,6 @@ namespace NetFabric.Vision
             }
 
             return edges;
-        }
-
-        unsafe List<Point> ExtractAnchors(int anchorThreshold)
-        {
-            var anchors = new List<Point>();
-
-            // iterate through the Rows
-            for(int row = 1, rowEnd = _gradientMap.Rows - 1; row < rowEnd; row += _anchorScanInterval)
-            {
-                // get pointers to the data Rows for efficient data access
-                var previousGradientRowPtr = (byte*)_gradientMap.Ptr(row - 1).ToPointer();
-                var currentGradientRowPtr = (byte*)_gradientMap.Ptr(row).ToPointer();
-                var nextGradientRowPtr = (byte*)_gradientMap.Ptr(row + 1).ToPointer();
-                var currentDirectionRowPtr = (byte*)_directionMap.Ptr(row).ToPointer();
-
-                // iterate through the columns
-                for(int col = 1, colEnd = _gradientMap.Cols - 1; col < colEnd; col += _anchorScanInterval)
-                {
-
-                    var g = currentGradientRowPtr[col];
-
-                    if(currentDirectionRowPtr[col] == HorizontalValue)
-                    {
-                        // compare to horizontal neighbors
-                        if(g - previousGradientRowPtr[col] > anchorThreshold &&
-                            g - nextGradientRowPtr[col] > anchorThreshold)
-                        {
-                            anchors.Add(new Point(col, row));
-                        }
-                    } else
-                    {
-                        // compare to vertical neighbors
-                        if(g - currentGradientRowPtr[col - 1] > anchorThreshold &&
-                            g - currentGradientRowPtr[col + 1] > anchorThreshold)
-                        {
-                            anchors.Add(new Point(col, row));
-                        }
-                    }
-                }
-            }
-
-            return anchors;
-        }
-
-        unsafe DoubleLinkedList<Point>[] ExtractAnchorsParameterFree()
-        {
-            var anchors = new DoubleLinkedList<Point>[256];
-
-            // iterate through the Rows
-            for(int row = 1, rowEnd = _gradientMap.Rows - 1; row < rowEnd; row += _anchorScanInterval)
-            {
-
-                var previousGradientRowPtr = (byte*)_gradientMap.Ptr(row - 1).ToPointer();
-                var currentGradientRowPtr = (byte*)_gradientMap.Ptr(row).ToPointer();
-                var nextGradientRowPtr = (byte*)_gradientMap.Ptr(row + 1).ToPointer();
-                var currentDirectionRowPtr = (byte*)_directionMap.Ptr(row).ToPointer();
-
-                // iterate through the columns
-                for(int col = 1, colEnd = _gradientMap.Cols - 1; col < colEnd; col += _anchorScanInterval)
-                {
-
-                    var g = currentGradientRowPtr[col];
-
-                    if(currentDirectionRowPtr[col] == HorizontalValue)
-                    {
-                        // compare to horizontal neighbors
-                        if(g > previousGradientRowPtr[col] && g > nextGradientRowPtr[col])
-                        {
-                            anchors[g].AddLast(new Point(col, row));
-                        }
-                    } else
-                    {
-                        // compare to vertical neighbors
-                        if(g > currentGradientRowPtr[col - 1] && g > currentGradientRowPtr[col + 1])
-                        {
-                            anchors[g].AddLast(new Point(col, row));
-                        }
-                    }
-                }
-            }
-
-            return anchors;
         }
 
         DoubleLinkedList<Point> GoLeft(Point point, List<DoubleLinkedList<Point>> edges, int recursionLevel)
@@ -176,11 +94,13 @@ namespace NetFabric.Vision
                 {
                     --point.Y; // up
                     gradient = upGradient;
-                } else if(downGradient > straightGradient && downGradient > upGradient)
+                }
+                else if(downGradient > straightGradient && downGradient > upGradient)
                 {
                     ++point.Y; // down
                     gradient = downGradient;
-                } else
+                }
+                else
                 {
                     // straight
                     gradient = straightGradient;
@@ -202,7 +122,8 @@ namespace NetFabric.Vision
                     // keeps this edgel
                     edge.AddLast(point);
                     edgel = EdgeValue;
-                } else
+                }
+                else
                 {
                     var adjacentEdge = GoVertical(point, edges, recursionLevel + 1);
                     HandleAdjacentEdge(point, edge, adjacentEdge, edges);
@@ -233,11 +154,13 @@ namespace NetFabric.Vision
                 {
                     --point.Y; // up
                     gradient = upGradient;
-                } else if(downGradient > straightGradient && downGradient > upGradient)
+                }
+                else if(downGradient > straightGradient && downGradient > upGradient)
                 {
                     ++point.Y; // down
                     gradient = downGradient;
-                } else
+                }
+                else
                 {
                     // straight
                     gradient = straightGradient;
@@ -259,7 +182,8 @@ namespace NetFabric.Vision
                     // keeps this edgel
                     edge.AddLast(point);
                     edgel = EdgeValue;
-                } else
+                }
+                else
                 {
                     var adjacentEdge = GoVertical(point, edges, recursionLevel + 1);
                     HandleAdjacentEdge(point, edge, adjacentEdge, edges);
@@ -291,11 +215,13 @@ namespace NetFabric.Vision
                 {
                     --point.X; // left
                     gradient = leftGradient;
-                } else if(rightGradient > straightGradient && rightGradient > leftGradient)
+                }
+                else if(rightGradient > straightGradient && rightGradient > leftGradient)
                 {
                     ++point.X; // right
                     gradient = rightGradient;
-                } else
+                }
+                else
                 {
                     // straight
                     gradient = straightGradient;
@@ -317,7 +243,8 @@ namespace NetFabric.Vision
                     // keeps this edgel
                     edge.AddLast(point);
                     edgel = EdgeValue;
-                } else
+                }
+                else
                 {
                     var adjacentEdge = GoHorizontal(point, edges, recursionLevel + 1);
                     HandleAdjacentEdge(point, edge, adjacentEdge, edges);
@@ -349,11 +276,13 @@ namespace NetFabric.Vision
                 {
                     --point.X; // left
                     gradient = leftGradient;
-                } else if(rightGradient > straightGradient && rightGradient > leftGradient)
+                }
+                else if(rightGradient > straightGradient && rightGradient > leftGradient)
                 {
                     ++point.X; // right
                     gradient = rightGradient;
-                } else
+                }
+                else
                 {
                     // straight
                     gradient = straightGradient;
@@ -375,7 +304,8 @@ namespace NetFabric.Vision
                     // keeps this edgel
                     edge.AddLast(point);
                     edgel = EdgeValue;
-                } else
+                }
+                else
                 {
                     var adjacentEdge = GoHorizontal(point, edges, recursionLevel + 1);
                     HandleAdjacentEdge(point, edge, adjacentEdge, edges);
@@ -475,7 +405,8 @@ namespace NetFabric.Vision
                 var edge = GoHorizontal(anchor, edges, 0);
                 if(edge.Count >= _minEdgePoints)
                     edges.Add(edge);
-            } else
+            }
+            else
             { // is vertical
                 var edge = GoVertical(anchor, edges, 0);
                 if(edge.Count >= _minEdgePoints)

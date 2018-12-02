@@ -10,9 +10,8 @@ namespace NetFabric.Vision.Tests
     {
         [Theory]
         [InlineData("lena512color.tiff", GradientOperator.Prewitt, 30.0, 1.0)]
-        public void ComputeGradient(string fileName, GradientOperator gradientOperator, double gradientThreshold, double smoothSigma)
+        public void DrawEdges(string fileName, GradientOperator gradientOperator, double gradientThreshold, double smoothSigma)
         {
-            // Arrange
             var inputPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
             var image = CV.LoadImage(inputPath, LoadImageFlags.Grayscale);
             var rows = image.Size.Height;
@@ -29,18 +28,27 @@ namespace NetFabric.Vision.Tests
 
             CV.Smooth(image, smooth, SmoothMethod.Gaussian, 5, 5, smoothSigma);
 
-            // Act
             Utils.ComputeGradient(smooth,
                 gradientOperator, gradientThreshold,
                 gradientX, gradientY,
                 absGradientX, absGradientY,
                 gradientMap, directionMap);
 
-            // Assert
             SaveImage(gradientMap,
                 $"ComputeGradient_GradientMap_{Path.GetFileNameWithoutExtension(fileName)}_{gradientOperator}_{gradientThreshold}_{smoothSigma}.bmp");
             SaveImage(directionMap,
                 $"ComputeGradient_DirectionMap_{Path.GetFileNameWithoutExtension(fileName)}_{gradientOperator}_{gradientThreshold}_{smoothSigma}.bmp");
+
+            var anchors = Utils.ExtractAnchors(gradientMap, directionMap, 4, 30);
+
+            var result = new Mat(rows, columns, Depth.U8, 1);
+            result.Set(Scalar.All(0));
+            var color = new Scalar(255);
+            foreach(var anchor in anchors)
+                CV.Line(result, anchor, anchor, color);
+
+            SaveImage(result,
+                $"ExtractAnchors_{Path.GetFileNameWithoutExtension(fileName)}_{gradientOperator}_{gradientThreshold}_{smoothSigma}.bmp");
         }
 
         void SaveImage(Mat source, string fileName) =>

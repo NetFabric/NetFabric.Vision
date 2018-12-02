@@ -1,10 +1,15 @@
 using System;
+using System.Collections.Generic;
 using OpenCV.Net;
 
 namespace NetFabric.Vision
 {
     static class Utils
     {
+        const byte HorizontalValue = 0;
+        const byte VerticalValue = 255;
+        const byte EdgeValue = 0;
+
         static readonly Mat PrewittX = Mat.FromArray(new float[] { -1, 0, 1, -1, 0, 1, -1, 0, 1 });
         static readonly Mat PrewittY = Mat.FromArray(new float[] { -1, -1, -1, 0, 0, 0, 1, 1, 1 });
         static readonly Mat ScharrX = Mat.FromArray(new float[] { -3, 0, 3, -10, 0, 10, -3, 0, 3 });
@@ -49,6 +54,76 @@ namespace NetFabric.Vision
             // edge direction 
             // abs(dx) >= abs(dy) => VERTICAL
             CV.Cmp(absGradientX, absGradientY, directionMap, ComparisonOperation.GreaterOrEqual);
+        }
+
+        public static List<Point> ExtractAnchors(Mat gradientMap, Mat directionMap, int scanInterval, int threshold)
+        {
+            var anchors = new List<Point>();
+
+            // iterate through the Rows
+            for(int row = 1, rowEnd = gradientMap.Rows - 1; row < rowEnd; row += scanInterval)
+            {
+                // iterate through the columns
+                for(int col = 1, colEnd = gradientMap.Cols - 1; col < colEnd; col += scanInterval)
+                {
+                    var g = (byte)gradientMap.GetReal(row, col);
+
+                    if((byte)directionMap.GetReal(row, col) == HorizontalValue)
+                    {
+                        // compare to horizontal neighbors
+                        if(Math.Abs(g - (byte)gradientMap.GetReal(row - 1, col)) > threshold &&
+                            Math.Abs(g - (byte)gradientMap.GetReal(row + 1, col)) > threshold)
+                        {
+                            anchors.Add(new Point(col, row));
+                        }
+                    }
+                    else
+                    {
+                        // compare to vertical neighbors
+                        if(Math.Abs(g - (byte)gradientMap.GetReal(row, col - 1)) > threshold &&
+                            Math.Abs(g - (byte)gradientMap.GetReal(row, col + 1)) > threshold)
+                        {
+                            anchors.Add(new Point(col, row));
+                        }
+                    }
+                }
+            }
+
+            return anchors;
+        }
+
+        public static unsafe List<Point>[] ExtractAnchorsParameterFree(Mat gradientMap, Mat directionMap, int scanInterval)
+        {
+            var anchors = new List<Point>[256];
+
+            // iterate through the Rows
+            for(int row = 1, rowEnd = gradientMap.Rows - 1; row < rowEnd; row += scanInterval)
+            {
+                // iterate through the columns
+                for(int col = 1, colEnd = gradientMap.Cols - 1; col < colEnd; col += scanInterval)
+                {
+                    var g = (byte)gradientMap.GetReal(row, col);
+
+                    if((byte)directionMap.GetReal(row, col) == HorizontalValue)
+                    {
+                        // compare to horizontal neighbors
+                        if(g > (byte)gradientMap.GetReal(row - 1, col) && g > (byte)gradientMap.GetReal(row + 1, col))
+                        {
+                            anchors[g].Add(new Point(col, row));
+                        }
+                    }
+                    else
+                    {
+                        // compare to vertical neighbors
+                        if(g > (byte)gradientMap.GetReal(row, col - 1) && g > (byte)gradientMap.GetReal(row, col + 1))
+                        {
+                            anchors[g].Add(new Point(col, row));
+                        }
+                    }
+                }
+            }
+
+            return anchors;
         }
     }
 }
