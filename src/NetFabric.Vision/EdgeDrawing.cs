@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using OpenCV.Net;
 
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("NetFabric.Vision.Tests")]
+
 namespace NetFabric.Vision
 {
     public enum GradientOperator
@@ -16,11 +18,6 @@ namespace NetFabric.Vision
         const byte HorizontalValue = 0;
         const byte VerticalValue = 255;
         const byte EdgeValue = 0;
-
-        static readonly Mat PrewittX = Mat.FromArray(new float[] { -1, 0, 1, -1, 0, 1, -1, 0, 1 });
-        static readonly Mat PrewittY = Mat.FromArray(new float[] { -1, -1, -1, 0, 0, 0, 1, 1, 1 });
-        static readonly Mat ScharrX = Mat.FromArray(new float[] { -3, 0, 3, -10, 0, 10, -3, 0, 3 });
-        static readonly Mat ScharrY = Mat.FromArray(new float[] { -3, -10, -3, 0, 0, 0, 3, 10, 3 });
 
         readonly GradientOperator _gradientOperator;
         readonly int _anchorScanInterval;
@@ -60,7 +57,11 @@ namespace NetFabric.Vision
             CV.Smooth(src, _smooth, SmoothMethod.Gaussian, 5, 5, _smoothSigma);
 
             // compute the gradient and direction maps
-            ComputeGradient(gradientThreshold);
+            Utils.ComputeGradient(_smooth,
+                _gradientOperator, gradientThreshold,
+                _gradientX, _gradientY,
+                _absGradientX, _absGradientY,
+                _gradientMap, _directionMap);
 
             // compute the anchors
             var anchors = ExtractAnchors(anchorThreshold);
@@ -73,45 +74,6 @@ namespace NetFabric.Vision
             }
 
             return edges;
-        }
-
-        void ComputeGradient(double gradientThreshold)
-        {
-            // calculate gradients
-            switch(_gradientOperator)
-            {
-                case GradientOperator.Prewitt:
-                    CV.Filter2D(_smooth, _gradientX, PrewittX);
-                    CV.Filter2D(_smooth, _gradientY, PrewittY);
-                    if(gradientThreshold < 0.0)
-                        gradientThreshold = 6.0;
-                    break;
-                case GradientOperator.Sobel:
-                    CV.Sobel(_smooth, _gradientX, 1, 0);
-                    CV.Sobel(_smooth, _gradientY, 0, 1);
-                    break;
-                case GradientOperator.Scharr:
-                    CV.Filter2D(_smooth, _gradientX, PrewittX);
-                    CV.Filter2D(_smooth, _gradientY, PrewittY);
-                    break;
-                default:
-                    throw new Exception($"Unknown gradient operator: {_gradientOperator}");
-            }
-
-            // calculate absolute values for gradients
-            CV.ConvertScaleAbs(_gradientX, _absGradientX);
-            CV.ConvertScaleAbs(_gradientY, _absGradientY);
-
-            // merge gradients  
-            // d = 0.5 * abs(dx) + 0.5 * abs(dy)
-            CV.AddWeighted(_absGradientX, 0.5, _absGradientY, 0.5, 0.0, _gradientMap);
-
-            // eliminate gradient weak pixels
-            CV.Threshold(_gradientMap, _gradientMap, gradientThreshold, 255, ThresholdTypes.ToZero);
-
-            // edge direction 
-            // abs(dx) >= abs(dy) => VERTICAL
-            CV.Cmp(_absGradientX, _absGradientY, _directionMap, ComparisonOperation.GreaterOrEqual);
         }
 
         unsafe List<Point> ExtractAnchors(int anchorThreshold)
