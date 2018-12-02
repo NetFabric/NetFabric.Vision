@@ -230,35 +230,35 @@ namespace NetFabric.Vision
             var direction = (byte)_directionMap.GetReal(anchor.Y, anchor.X);
             if(direction == HorizontalValue)
             { // is horizontal
-                var edge = GoHorizontal(anchor, edges, 0);
+                var edge = GoHorizontal(anchor.Y, anchor.X, edges, 0);
                 if(edge.Count >= _minEdgePoints)
                     edges.Add(edge);
             }
             else
             { // is vertical
-                var edge = GoVertical(anchor, edges, 0);
+                var edge = GoVertical(anchor.Y, anchor.X, edges, 0);
                 if(edge.Count >= _minEdgePoints)
                     edges.Add(edge);
             }
         }
 
-        DoubleLinkedList<Point> GoHorizontal(Point point, List<DoubleLinkedList<Point>> edges, int recursionLevel)
+        DoubleLinkedList<Point> GoHorizontal(int row, int column, List<DoubleLinkedList<Point>> edges, int recursionLevel)
         {
             var edge = new DoubleLinkedList<Point>();
 
             if(recursionLevel < _maxRecursionLevel)
             {
 
-                var left = GoLeft(point, edges, recursionLevel);
+                var left = GoLeft(row, column, edges, recursionLevel);
                 if(left.Count >= _minEdgePoints)
                 {
                     edge = DoubleLinkedList.AppendInPlace(edge, left, false, true);
                 }
 
                 // add the current point to back of edge
-                edge.AddLast(point);
+                edge.AddLast(new Point(column, row));
 
-                var right = GoRight(point, edges, recursionLevel);
+                var right = GoRight(row, column, edges, recursionLevel);
                 if(right.Count >= _minEdgePoints)
                 {
                     edge = DoubleLinkedList.AppendInPlace(edge, right, false, false);
@@ -269,23 +269,23 @@ namespace NetFabric.Vision
             return edge;
         }
 
-        DoubleLinkedList<Point> GoVertical(Point point, List<DoubleLinkedList<Point>> edges, int recursionLevel)
+        DoubleLinkedList<Point> GoVertical(int row, int column, List<DoubleLinkedList<Point>> edges, int recursionLevel)
         {
             var edge = new DoubleLinkedList<Point>();
 
             if(recursionLevel < _maxRecursionLevel)
             {
 
-                var down = GoDown(point, edges, recursionLevel);
+                var down = GoDown(row, column, edges, recursionLevel);
                 if(down.Count >= _minEdgePoints)
                 {
                     edge = DoubleLinkedList.AppendInPlace(edge, down, false, true);
                 }
 
                 // add the current point to back of edge
-                edge.AddLast(point);
+                edge.AddLast(new Point(column, row));
 
-                var up = GoUp(point, edges, recursionLevel);
+                var up = GoUp(row, column, edges, recursionLevel);
                 if(up.Count >= _minEdgePoints)
                 {
                     edge = DoubleLinkedList.AppendInPlace(edge, up, false, false);
@@ -296,28 +296,28 @@ namespace NetFabric.Vision
             return edge;
         }
 
-        DoubleLinkedList<Point> GoLeft(Point point, List<DoubleLinkedList<Point>> edges, int recursionLevel)
+        DoubleLinkedList<Point> GoLeft(int row, int column, List<DoubleLinkedList<Point>> edges, int recursionLevel)
         {
             var edge = new DoubleLinkedList<Point>();
 
             byte gradient, upGradient, straightGradient, downGradient;
             var direction = HorizontalValue;
-            while(point.X > 0 && point.X < _gradientMap.Cols - 1 && point.Y > 0 && point.Y < _gradientMap.Rows - 1)
+            while(column > 0 && column < _gradientMap.Cols - 1 && row > 0 && row < _gradientMap.Rows - 1)
             {
-                --point.X; // left
+                --column; // left
 
-                upGradient = (byte)_gradientMap.GetReal(point.Y - 1, point.X);
-                straightGradient = (byte)_gradientMap.GetReal(point.X, point.Y);
-                downGradient = (byte)_gradientMap.GetReal(point.Y + 1, point.X);
+                upGradient = (byte)_gradientMap.GetReal(row - 1, column);
+                straightGradient = (byte)_gradientMap.GetReal(row, column);
+                downGradient = (byte)_gradientMap.GetReal(row + 1, column);
 
                 if(upGradient > straightGradient && upGradient > downGradient)
                 {
-                    --point.Y; // up
+                    --row; // up
                     gradient = upGradient;
                 }
                 else if(downGradient > straightGradient && downGradient > upGradient)
                 {
-                    ++point.Y; // down
+                    ++row; // down
                     gradient = downGradient;
                 }
                 else
@@ -331,22 +331,22 @@ namespace NetFabric.Vision
                     break;
 
                 // check if edgel already handled
-                var edgel = _edgesMap.GetReal(point.X, point.Y);
+                var edgel = _edgesMap.GetReal(row, column);
                 if(edgel == EdgeValue)
                     break;
 
                 // check if direction changed
-                direction = (byte)_directionMap.GetReal(point.X, point.Y);
+                direction = (byte)_directionMap.GetReal(row, column);
                 if(direction == HorizontalValue)
                 {
                     // keeps this edgel
-                    edge.AddLast(point);
+                    edge.AddLast(new Point(column, row));
                     edgel = EdgeValue;
                 }
                 else
                 {
-                    var adjacentEdge = GoVertical(point, edges, recursionLevel + 1);
-                    HandleAdjacentEdge(point, edge, adjacentEdge, edges);
+                    var adjacentEdge = GoVertical(row, column, edges, recursionLevel + 1);
+                    HandleAdjacentEdge(row, column, edge, adjacentEdge, edges);
 
                     // break loop
                     break;
@@ -356,28 +356,28 @@ namespace NetFabric.Vision
             return edge;
         }
 
-        DoubleLinkedList<Point> GoRight(Point point, List<DoubleLinkedList<Point>> edges, int recursionLevel)
+        DoubleLinkedList<Point> GoRight(int row, int column, List<DoubleLinkedList<Point>> edges, int recursionLevel)
         {
             var edge = new DoubleLinkedList<Point>();
 
             byte gradient, upGradient, straightGradient, downGradient;
             var direction = HorizontalValue;
-            while(point.X > 0 && point.X < _gradientMap.Cols - 1 && point.Y > 0 && point.Y < _gradientMap.Rows - 1)
+            while(column > 0 && column < _gradientMap.Cols - 1 && row > 0 && row < _gradientMap.Rows - 1)
             {
-                ++point.X; // right
+                ++column; // right
 
-                upGradient = (byte)_gradientMap.GetReal(point.Y - 1, point.X);
-                straightGradient = (byte)_gradientMap.GetReal(point.X, point.Y);
-                downGradient = (byte)_gradientMap.GetReal(point.Y + 1, point.X);
+                upGradient = (byte)_gradientMap.GetReal(row - 1, column);
+                straightGradient = (byte)_gradientMap.GetReal(row, column);
+                downGradient = (byte)_gradientMap.GetReal(row + 1, column);
 
                 if(upGradient > straightGradient && upGradient > downGradient)
                 {
-                    --point.Y; // up
+                    --row; // up
                     gradient = upGradient;
                 }
                 else if(downGradient > straightGradient && downGradient > upGradient)
                 {
-                    ++point.Y; // down
+                    ++row; // down
                     gradient = downGradient;
                 }
                 else
@@ -391,22 +391,22 @@ namespace NetFabric.Vision
                     break;
 
                 // check if edgel already handled
-                var edgel = _edgesMap.GetReal(point.X, point.Y);
+                var edgel = _edgesMap.GetReal(row, column);
                 if(edgel == EdgeValue)
                     break;
 
                 // check if direction changed
-                direction = (byte)_directionMap.GetReal(point.X, point.Y);
+                direction = (byte)_directionMap.GetReal(row, column);
                 if(direction == HorizontalValue)
                 {
                     // keeps this edgel
-                    edge.AddLast(point);
+                    edge.AddLast(new Point(column, row));
                     edgel = EdgeValue;
                 }
                 else
                 {
-                    var adjacentEdge = GoVertical(point, edges, recursionLevel + 1);
-                    HandleAdjacentEdge(point, edge, adjacentEdge, edges);
+                    var adjacentEdge = GoVertical(row, column, edges, recursionLevel + 1);
+                    HandleAdjacentEdge(row, column, edge, adjacentEdge, edges);
 
                     // break loop
                     break;
@@ -417,28 +417,28 @@ namespace NetFabric.Vision
 
         }
 
-        DoubleLinkedList<Point> GoUp(Point point, List<DoubleLinkedList<Point>> edges, int recursionLevel)
+        DoubleLinkedList<Point> GoUp(int row, int column, List<DoubleLinkedList<Point>> edges, int recursionLevel)
         {
             var edge = new DoubleLinkedList<Point>();
 
             byte gradient, leftGradient, straightGradient, rightGradient;
             var direction = VerticalValue;
-            while(point.X > 0 && point.X < _gradientMap.Cols - 1 && point.Y > 0 && point.Y < _gradientMap.Rows - 1)
+            while(column > 0 && column < _gradientMap.Cols - 1 && row > 0 && row < _gradientMap.Rows - 1)
             {
-                --point.Y; // up
+                --row; // up
 
-                leftGradient = (byte)_gradientMap.GetReal(point.Y, point.X - 1);
-                straightGradient = (byte)_gradientMap.GetReal(point.X, point.Y);
-                rightGradient = (byte)_gradientMap.GetReal(point.Y, point.X + 1);
+                leftGradient = (byte)_gradientMap.GetReal(row, column - 1);
+                straightGradient = (byte)_gradientMap.GetReal(row, column);
+                rightGradient = (byte)_gradientMap.GetReal(row, column + 1);
 
                 if(leftGradient > straightGradient && leftGradient > rightGradient)
                 {
-                    --point.X; // left
+                    --column; // left
                     gradient = leftGradient;
                 }
                 else if(rightGradient > straightGradient && rightGradient > leftGradient)
                 {
-                    ++point.X; // right
+                    ++column; // right
                     gradient = rightGradient;
                 }
                 else
@@ -452,22 +452,22 @@ namespace NetFabric.Vision
                     break;
 
                 // check if edgel already handled
-                var edgel = _edgesMap.GetReal(point.X, point.Y);
+                var edgel = _edgesMap.GetReal(row, column);
                 if(edgel == EdgeValue)
                     break;
 
                 // check if direction changed
-                direction = (byte)_directionMap.GetReal(point.X, point.Y);
+                direction = (byte)_directionMap.GetReal(row, column);
                 if(direction == VerticalValue)
                 {
                     // keeps this edgel
-                    edge.AddLast(point);
+                    edge.AddLast(new Point(column, row));
                     edgel = EdgeValue;
                 }
                 else
                 {
-                    var adjacentEdge = GoHorizontal(point, edges, recursionLevel + 1);
-                    HandleAdjacentEdge(point, edge, adjacentEdge, edges);
+                    var adjacentEdge = GoHorizontal(row, column, edges, recursionLevel + 1);
+                    HandleAdjacentEdge(row, column, edge, adjacentEdge, edges);
 
                     // break loop
                     break;
@@ -478,28 +478,28 @@ namespace NetFabric.Vision
 
         }
 
-        DoubleLinkedList<Point> GoDown(Point point, List<DoubleLinkedList<Point>> edges, int recursionLevel)
+        DoubleLinkedList<Point> GoDown(int row, int column, List<DoubleLinkedList<Point>> edges, int recursionLevel)
         {
             var edge = new DoubleLinkedList<Point>();
 
             byte gradient, leftGradient, straightGradient, rightGradient;
             byte direction = VerticalValue;
-            while(point.X > 0 && point.X < _gradientMap.Cols - 1 && point.Y > 0 && point.Y < _gradientMap.Rows - 1)
+            while(column > 0 && column < _gradientMap.Cols - 1 && row > 0 && row < _gradientMap.Rows - 1)
             {
-                ++point.Y; // down
+                ++row; // down
 
-                leftGradient = (byte)_gradientMap.GetReal(point.Y, point.X - 1);
-                straightGradient = (byte)_gradientMap.GetReal(point.X, point.Y);
-                rightGradient = (byte)_gradientMap.GetReal(point.Y, point.X + 1);
+                leftGradient = (byte)_gradientMap.GetReal(row, column - 1);
+                straightGradient = (byte)_gradientMap.GetReal(row, column);
+                rightGradient = (byte)_gradientMap.GetReal(row, column + 1);
 
                 if(leftGradient > straightGradient && leftGradient > rightGradient)
                 {
-                    --point.X; // left
+                    --column; // left
                     gradient = leftGradient;
                 }
                 else if(rightGradient > straightGradient && rightGradient > leftGradient)
                 {
-                    ++point.X; // right
+                    ++column; // right
                     gradient = rightGradient;
                 }
                 else
@@ -513,22 +513,22 @@ namespace NetFabric.Vision
                     break;
 
                 // check if edgel already handled
-                var edgel = _edgesMap.GetReal(point.X, point.Y);
+                var edgel = _edgesMap.GetReal(row, column);
                 if(edgel == EdgeValue)
                     break;
 
                 // check if direction changed
-                direction = (byte)_directionMap.GetReal(point.X, point.Y);
+                direction = (byte)_directionMap.GetReal(row, column);
                 if(direction == VerticalValue)
                 {
                     // keeps this edgel
-                    edge.AddLast(point);
+                    edge.AddLast(new Point(column, row));
                     edgel = EdgeValue;
                 }
                 else
                 {
-                    var adjacentEdge = GoHorizontal(point, edges, recursionLevel + 1);
-                    HandleAdjacentEdge(point, edge, adjacentEdge, edges);
+                    var adjacentEdge = GoHorizontal(row, column, edges, recursionLevel + 1);
+                    HandleAdjacentEdge(row, column, edge, adjacentEdge, edges);
 
                     // break loop
                     break;
@@ -538,21 +538,21 @@ namespace NetFabric.Vision
             return edge;
         }
 
-        void HandleAdjacentEdge(Point point, DoubleLinkedList<Point> edge, DoubleLinkedList<Point> adjacentEdge, List<DoubleLinkedList<Point>> edges)
+        void HandleAdjacentEdge(int row, int column, DoubleLinkedList<Point> edge, DoubleLinkedList<Point> adjacentEdge, List<DoubleLinkedList<Point>> edges)
         {
             if(adjacentEdge.Count == 0)
                 return; // do nothing
 
             // append edges if they share extremities
             var adjacentFirst = adjacentEdge.First.Value;
-            if(point.X == adjacentFirst.X && point.Y == adjacentFirst.Y)
+            if(column == adjacentFirst.X && row == adjacentFirst.Y)
             {
                 edge = DoubleLinkedList.AppendInPlace(edge, adjacentEdge, false, false);
                 return;
             }
 
             var adjacentLast = adjacentEdge.Last.Value;
-            if(point.X == adjacentLast.X && point.Y == adjacentLast.Y)
+            if(column == adjacentLast.X && row == adjacentLast.Y)
             {
                 edge = DoubleLinkedList.AppendInPlace(edge, adjacentEdge, false, true);
                 return;
