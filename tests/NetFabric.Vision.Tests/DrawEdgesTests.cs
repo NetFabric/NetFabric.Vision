@@ -16,14 +16,14 @@ namespace NetFabric.Vision.Tests
             int minEdgePoints, int maxRecursionLevel, int anchorThreshold, int gradientThreshold)
         {
             var inputPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName);
-            var image = CV.LoadImage(inputPath, LoadImageFlags.Grayscale);
-            var rows = image.Size.Height;
-            var columns = image.Size.Width;
+            var source = CV.LoadImage(inputPath, LoadImageFlags.Grayscale);
+            var rows = source.Size.Height;
+            var columns = source.Size.Width;
 
             var edgeDrawing = new EdgeDrawing(rows, columns, gradientOperator, anchorScanInterval, smoothSigma, minEdgePoints, maxRecursionLevel);
 
-            var anchors = edgeDrawing.DrawEdges(image, anchorThreshold, gradientThreshold);
-
+            var destination = new Mat(rows, columns, Depth.U8, 1);
+            edgeDrawing.DrawEdges(source, destination, anchorThreshold, gradientThreshold);
         }
 
     }

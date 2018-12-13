@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   
   <PropertyGroup>
     <Title>NetFabric.Vision</Title>
@@ -28,7 +28,6 @@
   </PropertyGroup>
   
   <ItemGroup>
-    <PackageReference Include="NetFabric.DoubleLinkedList" Version="1.2.0" />
     <PackageReference Include="OpenCV.Net" Version="3.3.1" />
   </ItemGroup>
   
