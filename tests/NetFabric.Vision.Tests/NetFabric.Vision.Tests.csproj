@@ -23,11 +23,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Input\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="lena512color.tiff">
+    <None Update="Resources\Topal_Direction.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Resources\Topal_Edges.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Resources\Topal_Gradient.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Resources\lena512color.tiff">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

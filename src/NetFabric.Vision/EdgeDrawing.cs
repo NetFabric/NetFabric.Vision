@@ -63,39 +63,15 @@ namespace NetFabric.Vision
             // compute the gradient and direction maps
             ComputeGradient(source, gradientThreshold);
 
-#if DEBUG
-            SaveImage(_gradientMap, "GradientMap.bmp");
-            SaveImage(_directionMap, "DirectionMap.bmp");
-#endif
-
             // compute the anchors
-            var anchors = ExtractAnchors(anchorThreshold);
-
-#if DEBUG
-            var anchorsMap = new Mat(_rows, _columns, Depth.U8, 1);
-            anchorsMap.Set(Scalar.All(0));
-            var anchorColor = new Scalar(255);
-            foreach(var anchor in anchors)
-                CV.Line(anchorsMap, anchor, anchor, anchorColor);
-
-            SaveImage(anchorsMap, "ExtractAnchors.bmp");
-#endif
+            var anchors = ExtractAnchors(anchorThreshold, _gradientMap, _directionMap, _rows, _columns, _anchorScanInterval);
 
             // connect the anchors by smart routing
             foreach(var anchor in anchors)
             {
-                DrawEdges(anchor.Y, anchor.X, destination);
+                DrawEdge(anchor.Y, anchor.X, destination, _gradientMap, _directionMap, _rows, _columns);
             }
-
-#if DEBUG
-            SaveImage(destination, "EdgesMap.bmp");
-#endif
         }
-
-#if DEBUG
-        void SaveImage(Arr source, string fileName) =>
-            CV.SaveImage(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, fileName), source);
-#endif
 
         void ComputeGradient(Arr source, double gradientThreshold)
         {
@@ -139,23 +115,23 @@ namespace NetFabric.Vision
             CV.Cmp(_absGradientX, _absGradientY, _directionMap, ComparisonOperation.GreaterOrEqual);
         }
 
-        List<Point> ExtractAnchors(int threshold)
+        internal static List<Point> ExtractAnchors(int threshold, Arr gradientMap, Arr directionMap, int rows, int columns, int scanInterval)
         {
             var anchors = new List<Point>();
 
             // iterate through the Rows
-            for(int row = 1, rowEnd = _gradientMap.Rows - 1; row < rowEnd; row += _anchorScanInterval)
+            for(int row = 1, rowEnd = rows - 1; row < rowEnd; row += scanInterval)
             {
                 // iterate through the columns
-                for(int col = 1, colEnd = _gradientMap.Cols - 1; col < colEnd; col += _anchorScanInterval)
+                for(int col = 1, colEnd = columns - 1; col < colEnd; col += scanInterval)
                 {
-                    var g = _gradientMap.GetReal(row, col);
+                    var g = gradientMap.GetReal(row, col);
 
-                    if(_directionMap.GetReal(row, col) == HorizontalValue)
+                    if(directionMap.GetReal(row, col) == HorizontalValue)
                     {
                         // compare to horizontal neighbors
-                        if(Math.Abs(g - _gradientMap.GetReal(row - 1, col)) > threshold &&
-                            Math.Abs(g - _gradientMap.GetReal(row + 1, col)) > threshold)
+                        if(Math.Abs(g - gradientMap.GetReal(row - 1, col)) > threshold &&
+                            Math.Abs(g - gradientMap.GetReal(row + 1, col)) > threshold)
                         {
                             anchors.Add(new Point(col, row));
                         }
@@ -163,8 +139,8 @@ namespace NetFabric.Vision
                     else
                     {
                         // compare to vertical neighbors
-                        if(Math.Abs(g - _gradientMap.GetReal(row, col - 1)) > threshold &&
-                            Math.Abs(g - _gradientMap.GetReal(row, col + 1)) > threshold)
+                        if(Math.Abs(g - gradientMap.GetReal(row, col - 1)) > threshold &&
+                            Math.Abs(g - gradientMap.GetReal(row, col + 1)) > threshold)
                         {
                             anchors.Add(new Point(col, row));
                         }
@@ -175,22 +151,22 @@ namespace NetFabric.Vision
             return anchors;
         }
 
-        List<Point>[] ExtractAnchorsParameterFree()
+        internal static List<Point>[] ExtractAnchorsParameterFree(Arr gradientMap, Arr directionMap, int rows, int columns, int scanInterval)
         {
             var anchors = new List<Point>[256];
 
             // iterate through the Rows
-            for(int row = 1, rowEnd = _gradientMap.Rows - 1; row < rowEnd; row += _anchorScanInterval)
+            for(int row = 1, rowEnd = rows - 1; row < rowEnd; row += scanInterval)
             {
                 // iterate through the columns
-                for(int col = 1, colEnd = _gradientMap.Cols - 1; col < colEnd; col += _anchorScanInterval)
+                for(int col = 1, colEnd = columns - 1; col < colEnd; col += scanInterval)
                 {
-                    var g = (int)_gradientMap.GetReal(row, col);
+                    var g = (int)gradientMap.GetReal(row, col);
 
-                    if(_directionMap.GetReal(row, col) == HorizontalValue)
+                    if(directionMap.GetReal(row, col) == HorizontalValue)
                     {
                         // compare to horizontal neighbors
-                        if(g > _gradientMap.GetReal(row - 1, col) && g > _gradientMap.GetReal(row + 1, col))
+                        if(g > gradientMap.GetReal(row - 1, col) && g > gradientMap.GetReal(row + 1, col))
                         {
                             anchors[g].Add(new Point(col, row));
                         }
@@ -198,7 +174,7 @@ namespace NetFabric.Vision
                     else
                     {
                         // compare to vertical neighbors
-                        if(g > _gradientMap.GetReal(row, col - 1) && g > _gradientMap.GetReal(row, col + 1))
+                        if(g > gradientMap.GetReal(row, col - 1) && g > gradientMap.GetReal(row, col + 1))
                         {
                             anchors[g].Add(new Point(col, row));
                         }
@@ -209,26 +185,26 @@ namespace NetFabric.Vision
             return anchors;
         }
 
-        void DrawEdges(int row, int column, Arr edgeMap)
+        internal static void DrawEdge(int row, int column, Arr edgeMap, Arr gradientMap, Arr directionMap, int rows, int columns)
         {
             var edgel = edgeMap.GetReal(row, column);
             if(edgel != 0)
                 return;
 
-            var direction = _directionMap.GetReal(row, column);
+            var direction = directionMap.GetReal(row, column);
             if(direction == HorizontalValue)
             { // go horizontal
-                GoLeft(row, column, edgeMap);
-                GoRight(row, column, edgeMap);
+                GoLeft(row, column, edgeMap, gradientMap, directionMap, rows, columns);
+                GoRight(row, column, edgeMap, gradientMap, directionMap, rows, columns);
             }
             else
             { // go vertical
-                GoUp(row, column, edgeMap);
-                GoDown(row, column, edgeMap);
+                GoUp(row, column, edgeMap, gradientMap, directionMap, rows, columns);
+                GoDown(row, column, edgeMap, gradientMap, directionMap, rows, columns);
             }
         }
 
-        void GoLeft(int row, int column, Arr edgeMap)
+        static void GoLeft(int row, int column, Arr edgeMap, Arr gradientMap, Arr directionMap, int rows, int columns)
         {
             double upGradient, straightGradient, downGradient, direction, edgel;
             do
@@ -239,9 +215,9 @@ namespace NetFabric.Vision
                 if(column == 0)
                     return;
 
-                upGradient = _gradientMap.GetReal(row - 1, column);
-                straightGradient = _gradientMap.GetReal(row, column);
-                downGradient = _gradientMap.GetReal(row + 1, column);
+                upGradient = gradientMap.GetReal(row - 1, column);
+                straightGradient = gradientMap.GetReal(row, column);
+                downGradient = gradientMap.GetReal(row + 1, column);
 
                 if(upGradient > straightGradient && upGradient > downGradient)
                 {
@@ -252,7 +228,7 @@ namespace NetFabric.Vision
                 else if(downGradient > straightGradient && downGradient > upGradient)
                 {
                     ++row; // down
-                    if(row == _rows - 1)
+                    if(row == rows - 1)
                         return;
                 }
                 else if(straightGradient == 0)
@@ -264,16 +240,16 @@ namespace NetFabric.Vision
                 if(edgel != 0)
                     return;
 
-                direction = _directionMap.GetReal(row, column);
+                direction = directionMap.GetReal(row, column);
             }
             while(direction == HorizontalValue);
 
             // go vertical
-            GoUp(row, column, edgeMap);
-            GoDown(row, column, edgeMap);
+            GoUp(row, column, edgeMap, gradientMap, directionMap, rows, columns);
+            GoDown(row, column, edgeMap, gradientMap, directionMap, rows, columns);
         }
 
-        void GoRight(int row, int column, Arr edgeMap)
+        static void GoRight(int row, int column, Arr edgeMap, Arr gradientMap, Arr directionMap, int rows, int columns)
         {
             double upGradient, straightGradient, downGradient, direction, edgel;
             do
@@ -281,12 +257,12 @@ namespace NetFabric.Vision
                 edgeMap.SetReal(row, column, 255);
 
                 ++column; // right
-                if(column == _columns - 1)
+                if(column == columns - 1)
                     return;
 
-                upGradient = _gradientMap.GetReal(row - 1, column);
-                straightGradient = _gradientMap.GetReal(row, column);
-                downGradient = _gradientMap.GetReal(row + 1, column);
+                upGradient = gradientMap.GetReal(row - 1, column);
+                straightGradient = gradientMap.GetReal(row, column);
+                downGradient = gradientMap.GetReal(row + 1, column);
 
                 if(upGradient > straightGradient && upGradient > downGradient)
                 {
@@ -297,7 +273,7 @@ namespace NetFabric.Vision
                 else if(downGradient > straightGradient && downGradient > upGradient)
                 {
                     ++row; // down
-                    if(row == _rows - 1)
+                    if(row == rows - 1)
                         return;
                 }
                 else if(straightGradient == 0)
@@ -309,16 +285,16 @@ namespace NetFabric.Vision
                 if(edgel != 0)
                     return;
 
-                direction = _directionMap.GetReal(row, column);
+                direction = directionMap.GetReal(row, column);
             }
             while(direction == HorizontalValue);
 
             // go vertical
-            GoUp(row, column, edgeMap);
-            GoDown(row, column, edgeMap);
+            GoUp(row, column, edgeMap, gradientMap, directionMap, rows, columns);
+            GoDown(row, column, edgeMap, gradientMap, directionMap, rows, columns);
         }
 
-        void GoUp(int row, int column, Arr edgeMap)
+        static void GoUp(int row, int column, Arr edgeMap, Arr gradientMap, Arr directionMap, int rows, int columns)
         {
             double leftGradient, straightGradient, rightGradient, direction, edgel;
             do
@@ -329,9 +305,9 @@ namespace NetFabric.Vision
                 if(row == 0)
                     return;
 
-                leftGradient = _gradientMap.GetReal(row, column - 1);
-                straightGradient = _gradientMap.GetReal(row, column);
-                rightGradient = _gradientMap.GetReal(row, column + 1);
+                leftGradient = gradientMap.GetReal(row, column - 1);
+                straightGradient = gradientMap.GetReal(row, column);
+                rightGradient = gradientMap.GetReal(row, column + 1);
 
                 if(leftGradient > straightGradient && leftGradient > rightGradient)
                 {
@@ -342,7 +318,7 @@ namespace NetFabric.Vision
                 else if(rightGradient > straightGradient && rightGradient > leftGradient)
                 {
                     ++column; // right
-                    if(column == _columns - 1)
+                    if(column == columns - 1)
                         return;
                 }
                 else if(straightGradient == 0)
@@ -354,16 +330,16 @@ namespace NetFabric.Vision
                 if(edgel != 0)
                     return;
 
-                direction = _directionMap.GetReal(row, column);
+                direction = directionMap.GetReal(row, column);
             }
             while(direction == VerticalValue);
 
             // go horizontal
-            GoLeft(row, column, edgeMap);
-            GoRight(row, column, edgeMap);
+            GoLeft(row, column, edgeMap, gradientMap, directionMap, rows, columns);
+            GoRight(row, column, edgeMap, gradientMap, directionMap, rows, columns);
         }
 
-        void GoDown(int row, int column, Arr edgeMap)
+        static void GoDown(int row, int column, Arr edgeMap, Arr gradientMap, Arr directionMap, int rows, int columns)
         {
             double leftGradient, straightGradient, rightGradient, direction, edgel;
             do
@@ -371,12 +347,12 @@ namespace NetFabric.Vision
                 edgeMap.SetReal(row, column, 255);
 
                 ++row; // down
-                if(row == _rows - 1)
+                if(row == rows - 1)
                     return;
 
-                leftGradient = _gradientMap.GetReal(row, column - 1);
-                straightGradient = _gradientMap.GetReal(row, column);
-                rightGradient = _gradientMap.GetReal(row, column + 1);
+                leftGradient = gradientMap.GetReal(row, column - 1);
+                straightGradient = gradientMap.GetReal(row, column);
+                rightGradient = gradientMap.GetReal(row, column + 1);
 
                 if(leftGradient > straightGradient && leftGradient > rightGradient)
                 {
@@ -387,7 +363,7 @@ namespace NetFabric.Vision
                 else if(rightGradient > straightGradient && rightGradient > leftGradient)
                 {
                     ++column; // right
-                    if(column == _columns - 1)
+                    if(column == columns - 1)
                         return;
                 }
                 else if(straightGradient == 0)
@@ -399,13 +375,13 @@ namespace NetFabric.Vision
                 if(edgel != 0)
                     return;
 
-                direction = _directionMap.GetReal(row, column);
+                direction = directionMap.GetReal(row, column);
             }
             while(direction == VerticalValue);
 
             // go horizontal
-            GoLeft(row, column, edgeMap);
-            GoRight(row, column, edgeMap);
+            GoLeft(row, column, edgeMap, gradientMap, directionMap, rows, columns);
+            GoRight(row, column, edgeMap, gradientMap, directionMap, rows, columns);
         }
 
     }
