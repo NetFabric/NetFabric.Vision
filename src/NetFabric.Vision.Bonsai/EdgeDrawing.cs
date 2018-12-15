@@ -1,21 +1,26 @@
 using System;
+using System.ComponentModel;
+using System.Drawing.Design;
 using System.Linq;
 using System.Reactive.Linq;
 using Bonsai;
-using Bonsai.Vision;
 using OpenCV.Net;
 
 namespace NetFabric.Vision.Bonsai
 {
-    public class EdgeDrawing : Transform<IplImage, Contours>
+    [Description("Edge segment detection.")]
+    public class EdgeDrawing : Transform<IplImage, IplImage>
     {
-        public override IObservable<Contours> Process(IObservable<IplImage> source)
+        [Range(0, 6)]
+        [Description("The order of the horizontal derivative.")]
+        [Editor(DesignTypes.NumericUpDownEditor, typeof(UITypeEditor))]
+        public int AnchorScanInterval { get; set; }
+
+        public override IObservable<IplImage> Process(IObservable<IplImage> source)
         {
-            return source.Select<IplImage, Contours>(input =>
+            return source.Select(input =>
             {
-                // TODO: process the input object and return the result.
-                throw new NotImplementedException();
-                return default;
+                return input;
             });
         }
     }

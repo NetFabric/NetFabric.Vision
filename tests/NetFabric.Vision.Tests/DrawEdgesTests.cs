@@ -31,17 +31,17 @@ namespace NetFabric.Vision.Tests
         }
 
         [Theory]
-        [InlineData("Resources/lena512color.tiff", GradientOperator.Prewitt, 4, 1.0, 1, 255, 8, 30, "lena512color_DrawEdges_Edges.png")]
+        [InlineData("Resources/lena512color.tiff", GradientOperator.Scharr, 4, 1.0, 255, 8, 30, "lena512color_DrawEdges_Edges.png")]
         public void DrawEdges(
-                    string sourceFileName, GradientOperator gradientOperator,
-                    int anchorScanInterval, double smoothSigma,
-                    int minEdgePoints, int maxRecursionLevel, int anchorThreshold, int gradientThreshold, string resultFileName)
+            string sourceFileName, GradientOperator gradientOperator, int anchorScanInterval,
+            int minEdgePoints, int maxRecursionLevel, int anchorThreshold, int gradientThreshold,
+            string resultFileName)
         {
             // Arrange
             var source = LoadImage(sourceFileName);
             var rows = source.Size.Height;
             var columns = source.Size.Width;
-            var edgeDrawing = new EdgeDrawing(rows, columns, gradientOperator, anchorScanInterval, smoothSigma, minEdgePoints, maxRecursionLevel);
+            var edgeDrawing = new EdgeDrawing(rows, columns, gradientOperator, anchorScanInterval);
             var edgesMap = new Mat(rows, columns, Depth.U8, 1);
             edgesMap.Set(Scalar.All(0));
 

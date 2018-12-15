@@ -29,26 +29,20 @@ namespace NetFabric.Vision
         readonly int _columns;
         readonly GradientOperator _gradientOperator;
         readonly int _anchorScanInterval;
-        readonly double _smoothSigma;
-        readonly int _minEdgePoints;
-        readonly int _maxRecursionLevel;
-        readonly Mat _smooth;
+        readonly Mat _smoothed;
         readonly Mat _gradientMap, _directionMap;
         readonly Mat _gradientX, _gradientY;
         readonly Mat _magnitudeMap;
         readonly Mat _absGradientX, _absGradientY;
         readonly double[] _cummulativeGradientDistribution = new double[256];
 
-        public EdgeDrawing(int rows, int columns, GradientOperator gradientOperator, int anchorScanInterval, double smoothSigma, int minEdgePoints, int maxRecursionLevel)
+        public EdgeDrawing(int rows, int columns, GradientOperator gradientOperator, int anchorScanInterval)
         {
             _rows = rows;
             _columns = columns;
             _gradientOperator = gradientOperator;
             _anchorScanInterval = anchorScanInterval;
-            _smoothSigma = smoothSigma;
-            _minEdgePoints = minEdgePoints;
-            _maxRecursionLevel = maxRecursionLevel;
-            _smooth = new Mat(rows, columns, Depth.U8, 1);
+            _smoothed = new Mat(rows, columns, Depth.U8, 1);
             _gradientMap = new Mat(rows, columns, Depth.U8, 1);
             _directionMap = new Mat(rows, columns, Depth.U8, 1);
             _gradientX = new Mat(rows, columns, Depth.S16, 1);
@@ -76,24 +70,24 @@ namespace NetFabric.Vision
         void ComputeGradient(Arr source, double gradientThreshold)
         {
             // gaussian filtering
-            CV.Smooth(source, _smooth, SmoothMethod.Gaussian, 5, 5, _smoothSigma);
+            CV.Smooth(source, _smoothed, SmoothMethod.Gaussian, 5, 5, 1.0);
 
             // calculate gradients
             switch(_gradientOperator)
             {
                 case GradientOperator.Prewitt:
-                    CV.Filter2D(_smooth, _gradientX, PrewittX);
-                    CV.Filter2D(_smooth, _gradientY, PrewittY);
+                    CV.Filter2D(_smoothed, _gradientX, PrewittX);
+                    CV.Filter2D(_smoothed, _gradientY, PrewittY);
                     if(gradientThreshold < 0.0)
                         gradientThreshold = 6.0;
                     break;
                 case GradientOperator.Sobel:
-                    CV.Sobel(_smooth, _gradientX, 1, 0);
-                    CV.Sobel(_smooth, _gradientY, 0, 1);
+                    CV.Sobel(_smoothed, _gradientX, 1, 0);
+                    CV.Sobel(_smoothed, _gradientY, 0, 1);
                     break;
                 case GradientOperator.Scharr:
-                    CV.Filter2D(_smooth, _gradientX, PrewittX);
-                    CV.Filter2D(_smooth, _gradientY, PrewittY);
+                    CV.Filter2D(_smoothed, _gradientX, PrewittX);
+                    CV.Filter2D(_smoothed, _gradientY, PrewittY);
                     break;
                 default:
                     throw new Exception($"Unknown gradient operator: {_gradientOperator}");
@@ -143,40 +137,6 @@ namespace NetFabric.Vision
                             Math.Abs(g - gradientMap.GetReal(row, col + 1)) > threshold)
                         {
                             anchors.Add(new Point(col, row));
-                        }
-                    }
-                }
-            }
-
-            return anchors;
-        }
-
-        internal static List<Point>[] ExtractAnchorsParameterFree(Arr gradientMap, Arr directionMap, int rows, int columns, int scanInterval)
-        {
-            var anchors = new List<Point>[256];
-
-            // iterate through the Rows
-            for(int row = 1, rowEnd = rows - 1; row < rowEnd; row += scanInterval)
-            {
-                // iterate through the columns
-                for(int col = 1, colEnd = columns - 1; col < colEnd; col += scanInterval)
-                {
-                    var g = (int)gradientMap.GetReal(row, col);
-
-                    if(directionMap.GetReal(row, col) == HorizontalValue)
-                    {
-                        // compare to horizontal neighbors
-                        if(g > gradientMap.GetReal(row - 1, col) && g > gradientMap.GetReal(row + 1, col))
-                        {
-                            anchors[g].Add(new Point(col, row));
-                        }
-                    }
-                    else
-                    {
-                        // compare to vertical neighbors
-                        if(g > gradientMap.GetReal(row, col - 1) && g > gradientMap.GetReal(row, col + 1))
-                        {
-                            anchors[g].Add(new Point(col, row));
                         }
                     }
                 }
