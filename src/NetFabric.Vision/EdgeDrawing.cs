@@ -22,8 +22,6 @@ namespace NetFabric.Vision
 
         static readonly Mat PrewittX = Mat.FromArray(new float[] { -1, 0, 1, -1, 0, 1, -1, 0, 1 });
         static readonly Mat PrewittY = Mat.FromArray(new float[] { -1, -1, -1, 0, 0, 0, 1, 1, 1 });
-        static readonly Mat ScharrX = Mat.FromArray(new float[] { -3, 0, 3, -10, 0, 10, -3, 0, 3 });
-        static readonly Mat ScharrY = Mat.FromArray(new float[] { -3, -10, -3, 0, 0, 0, 3, 10, 3 });
 
         readonly int _rows;
         readonly int _columns;
@@ -86,8 +84,8 @@ namespace NetFabric.Vision
                     CV.Sobel(_smoothed, _gradientY, 0, 1);
                     break;
                 case GradientOperator.Scharr:
-                    CV.Filter2D(_smoothed, _gradientX, PrewittX);
-                    CV.Filter2D(_smoothed, _gradientY, PrewittY);
+                    CV.Sobel(_smoothed, _gradientX, 1, 0, -1);
+                    CV.Sobel(_smoothed, _gradientY, 0, 1, -1);
                     break;
                 default:
                     throw new Exception($"Unknown gradient operator: {_gradientOperator}");

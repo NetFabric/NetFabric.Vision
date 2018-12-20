@@ -31,10 +31,10 @@ namespace NetFabric.Vision.Tests
         }
 
         [Theory]
-        [InlineData("Resources/lena512color.tiff", GradientOperator.Scharr, 4, 1.0, 255, 8, 30, "lena512color_DrawEdges_Edges.png")]
+        [InlineData("Resources/lena512color.tiff", GradientOperator.Scharr, 4, 8, 150, "lena512color_DrawEdges_Edges.png")]
         public void DrawEdges(
             string sourceFileName, GradientOperator gradientOperator, int anchorScanInterval,
-            int minEdgePoints, int maxRecursionLevel, int anchorThreshold, int gradientThreshold,
+            int anchorThreshold, int gradientThreshold,
             string resultFileName)
         {
             // Arrange
