@@ -18,16 +18,16 @@ namespace NetFabric.Vision.Tests
             var source = LoadImage(sourceFileName);
             var rows = source.Size.Height;
             var columns = source.Size.Width;
-            var edgeDrawing = new EdgeDrawing(rows, columns);
+            var gradients = new Gradients(rows, columns);
 
             // Act
-            edgeDrawing.ComputeGradient(source, gradientOperator, gradientThreshold);
+            gradients.ComputeGradient(source, gradientOperator, gradientThreshold);
 
             // Assert
             var gradientFileName = Path.Combine("Output", "ComputeGradient", $"{Path.GetFileNameWithoutExtension(sourceFileName)}_{gradientOperator}_{gradientThreshold}_GradientMap.png");
             var directionsFileName = Path.Combine("Output", "ComputeGradient", $"{Path.GetFileNameWithoutExtension(sourceFileName)}_{gradientOperator}_{gradientThreshold}_DirectionsMap.png");
-            SaveImage(edgeDrawing._gradientMap, gradientFileName);
-            SaveImage(edgeDrawing._directionMap, directionsFileName);
+            SaveImage(gradients.GradientMap, gradientFileName);
+            SaveImage(gradients.DirectionMap, directionsFileName);
         }
 
         [Theory]
@@ -42,11 +42,11 @@ namespace NetFabric.Vision.Tests
             var source = LoadImage(sourceFileName);
             var rows = source.Size.Height;
             var columns = source.Size.Width;
-            var edgeDrawing = new EdgeDrawing(rows, columns);
-            edgeDrawing.ComputeGradient(source, gradientOperator, gradientThreshold);
+            var gradients = new Gradients(rows, columns);
+            gradients.ComputeGradient(source, gradientOperator, gradientThreshold);
 
             // Act
-            var anchors = edgeDrawing.ExtractAnchors(anchorScanInterval, anchorThreshold);
+            var anchors = gradients.ExtractAnchors(anchorScanInterval, anchorThreshold);
 
             // Assert
             var anchorMap = new Mat(rows, columns, Depth.U8, 1);
